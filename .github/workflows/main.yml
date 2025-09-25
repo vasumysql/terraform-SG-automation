@@ -1,1 +1,54 @@
+name: Terraform AWS Security Group - Vasu
 
+on:
+  workflow_dispatch:
+  #push:
+  #  branches:
+  #    - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write   # ✅ Needed for OIDC
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::640025900042:role/GitHubTerraformRoleVasu
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      - name: Cache Terraform plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./securitygroup
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: ./securitygroup
+
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ./securitygroup/tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: ./securitygroup
